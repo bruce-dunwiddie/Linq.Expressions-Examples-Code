@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text;
 
 using NUnit.Framework;
 
@@ -263,6 +264,82 @@ namespace LinqExpressionsTests
 			Assert.AreEqual("Jan 1", dates[0]);
 			Assert.AreEqual("Jan 2", dates[1]);
 			Assert.AreEqual("Feb 1", dates[2]);
+		}
+
+		[Test]
+		public void Method_InstanceWithMultipleParameters()
+		{
+			StringBuilder content = new StringBuilder();
+
+			// locate the method to be called
+			
+			// System.Text.StringBuilder Append(char value, int repeatCount)
+			// Appends a specified number of copies of the string representation of a Unicode character to this instance.
+			MethodInfo appendNChars = typeof(StringBuilder)
+				.GetMethod(
+					"Append",
+					new Type[]
+					{
+						typeof(char), 
+						typeof(int)
+					});
+
+			// ParameterExpression is used to map a value from the caller
+			// to the lambda body
+
+			// this is the same for object instances as well as method
+			// parameters
+			ParameterExpression builder = Expression.Parameter(
+				typeof(StringBuilder));
+
+			ParameterExpression characterToRepeat = Expression.Parameter(
+				typeof(char));
+
+			ParameterExpression numberOfRepeats = Expression.Parameter(
+				typeof(int));
+
+			// define the body of the lambda
+
+			// we're going to just have a single method call within the body
+			MethodCallExpression body = Expression.Call(
+				builder,
+				appendNChars,
+				new Expression[]
+				{
+					characterToRepeat,
+					numberOfRepeats
+				});
+
+			Expression<Action<StringBuilder, char, int>> lambda = Expression.Lambda<Action<StringBuilder, char, int>>(
+				
+				// this is going to be the function body/logic
+
+				// the value returned from a function is the last expression in its body
+				body,
+
+				// this is the parameter list being passed in to the lambda body
+
+				// have to use same ParameterExpression instances referenced in
+				// expression body definition above to get them to map through Func call
+
+				// remember to add instance parameter
+				new ParameterExpression[]
+				{
+					builder,
+					characterToRepeat,
+					numberOfRepeats
+				});
+
+			// create the Action from the lambda
+			Action<StringBuilder, char, int> action = lambda.Compile();
+
+			// use Action to execute method
+			action(content, 'a', 3);
+			action(content, 'b', 4);
+
+			Console.WriteLine(content.ToString());
+
+			Assert.AreEqual("aaabbbb", content.ToString());
 		}
 	}
 }
